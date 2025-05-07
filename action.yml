@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: ghcr-oci-retagger
+description: Tag a previous container image (or set of images) as `:latest`
+author: "Zeglius"
+
+branding:
+  color: orange
+  icon: upload-cloud
+
+inputs:
+  image_refs:
+    description: "String of images to retag, delimited by spaces"
+    required: true
+    # Example:
+    #   image_refs: >-
+    #     ghcr.io/ublue-os/bazzite
+    #     ghcr.io/ublue-os/bazzite-gnome
+    #     ghcr.io/ublue-os/bazzite-gnome
+
+  final_tags:
+    description: "String of tags to retag the image to delimited by spaces. Example: <tag1> <tag2>"
+    required: true
+    default: latest
+    # Example:
+    #   final_tags: >-
+    #     latest
+    #     stable
+
+runs:
+  using: docker
+  image: "Dockerfile"
+  env:
+    image_refs: ${{ inputs.image_refs }}
+    final_tags: ${{ inputs.final_tags }}
