@@ -4,6 +4,7 @@
 # dependencies = []
 # ///
 
+import logging
 import os
 import subprocess
 import sys
@@ -29,12 +30,13 @@ type error = str | None
 
 
 def skopeo_retag(src_imgref: str, dst_imgref: str) -> bool:
+    logging.debug(
+        "Command to execute:", "/usr/bin/skopeo", "copy", src_imgref, dst_imgref
+    )
     cmd_out = subprocess.run(
         executable="/usr/bin/skopeo",
         args=["copy", src_imgref, src_imgref],
         text=True,
-        stderr=subprocess.STDOUT,
-        stdout=subprocess.STDOUT,
     )
 
     return cmd_out.returncode == 0
@@ -42,8 +44,12 @@ def skopeo_retag(src_imgref: str, dst_imgref: str) -> bool:
 
 def main():
     # Set named parameters
-    imgs_to_retag: list[str] = os.getenv("image_refs", "").split(" ")
-    final_tags: list[str] = os.getenv("final_tags", "").split(" ")
+    imgs_to_retag: list[str] = [
+        s for s in os.getenv("image_refs", "").split(" ") if s != ""
+    ]
+    final_tags: list[str] = [
+        s for s in os.getenv("final_tags", "").split(" ") if s != ""
+    ]
 
     # Check params
     if imgs_to_retag == []:
@@ -75,8 +81,4 @@ def main():
 
 
 if __name__ == "__main__":
-    argv = sys.argv
-
-    if "--help" or "-h" in argv:
-        _help()
     main()
