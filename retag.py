@@ -33,6 +33,9 @@ def skopeo_retag(src_imgref: str, dst_imgref: str) -> bool:
     return cmd_out.returncode == 0
 
 
+summary_log = open(getenv("GITHUB_STEP_SUMMARY", "/dev/null"), "a")
+
+
 def main():
     img_mappings: list[str] = getenv("TAG_MAPPINGS", "").splitlines()
 
@@ -45,15 +48,22 @@ def main():
     # Filter out empty lines
     img_mappings = list(filter(lambda line: line != "", img_mappings))
 
+    # Write header for github step log
+    print("# Retagging summary", file=summary_log) if getenv("CI") is not None else None
+
     for src, dst in [
         (src.strip(), dst.strip()) for src, dst in [x.split("=>") for x in img_mappings]
     ]:
         src = getenv("PREFIX", "") + src
         dst = getenv("PREFIX", "") + dst
-        skopeo_retag(src, dst)
+        if skopeo_retag(src, dst) and getenv("CI") is not None:
+            print("```", file=summary_log)
+            print(f"{src} => {dst}", file=summary_log)
+            print("```", file=summary_log)
 
 
 if __name__ == "__main__":
     # if "-h" or "--help" in sys.argv:
     #     _help()
     main()
+    summary_log.close()
