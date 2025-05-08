@@ -7,7 +7,7 @@
 import subprocess
 import sys
 from os import getenv
-from typing import Iterator, NoReturn
+from typing import NoReturn
 
 
 def _help(exit_code: int = 0) -> NoReturn:
@@ -24,19 +24,24 @@ def die(cause: str = "Something went wrong") -> NoReturn:
 
 
 def skopeo_retag(src_imgref: str, dst_imgref: str) -> bool:
-    cmd_out = subprocess.run(
-        executable="/usr/bin/skopeo",
-        args=["copy", src_imgref, src_imgref],
-        text=True,
-    )
+    cmd = [
+        "/usr/bin/skopeo",
+        "copy",
+        f"docker://{src_imgref}",
+        f"docker://{dst_imgref}",
+    ]
 
-    return cmd_out.returncode == 0
+    print(" ".join(["Running command:", *cmd]))
+
+    res = subprocess.run(cmd, text=True).returncode == 0
+
+    return res
 
 
 summary_log = open(getenv("GITHUB_STEP_SUMMARY", "/dev/null"), "a")
 
 
-def img_iter(lines: list[str]) -> Iterator[tuple[str, str]]:
+def img_iter(lines: list[str]) -> list[tuple[str, str]]:
     """
     Pass a list of lines, each line must follow the format 'src_img:src_tag => dst_img:dst_tag,dst_tag2,...'
 
@@ -76,7 +81,7 @@ def img_iter(lines: list[str]) -> Iterator[tuple[str, str]]:
                 )
             )
 
-    return iter(res)
+    return res
 
 
 def main():
