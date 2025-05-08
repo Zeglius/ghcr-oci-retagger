@@ -54,9 +54,9 @@ def main():
     for src, dst in [
         (src.strip(), dst.strip()) for src, dst in [x.split("=>") for x in img_mappings]
     ]:
-        src = getenv("PREFIX", "") + src
-        dst = getenv("PREFIX", "") + dst
-        if skopeo_retag(src, dst) and getenv("CI") is not None:
+        src = (getenv("SRC_PREFIX") or getenv("PREFIX") or "") + src
+        dst = (getenv("DST_PREFIX") or getenv("PREFIX") or "") + dst
+        if all((src, dst)) and skopeo_retag(src, dst) and getenv("CI") is not None:
             print("```", file=summary_log)
             print(f"{src} => {dst}", file=summary_log)
             print("```", file=summary_log)

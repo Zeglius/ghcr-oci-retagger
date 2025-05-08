@@ -17,6 +17,14 @@ inputs:
     required: false
     default: ""
 
+  SRC_PREFIX:
+    description: "Prepend a string to source image references. Overrides PREFIX"
+    required: false
+
+  DST_PREFIX:
+    description: "Prepend a string to destination image references. Overrides PREFIX"
+    required: false
+
 runs:
   using: docker
   image: "Dockerfile"
