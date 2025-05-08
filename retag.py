@@ -9,6 +9,19 @@ import sys
 from os import getenv
 from typing import NoReturn
 
+skopeo_logged = False
+
+
+def _login():
+    subprocess.run(
+        [
+            "sh",
+            "-c",
+            """echo "${GITHUB_TOKEN}" | skopeo login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin""",
+        ],
+        shell=True,
+    )
+
 
 def _help(exit_code: int = 0) -> NoReturn:
     """Print usage of script and exit"""
@@ -85,6 +98,8 @@ def img_iter(lines: list[str]) -> list[tuple[str, str]]:
 
 
 def main():
+    _login()
+
     img_mappings: list[str] = getenv("TAG_MAPPINGS", "").lower().splitlines()
 
     # Strip comment lines
