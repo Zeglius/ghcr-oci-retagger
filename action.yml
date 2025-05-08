@@ -8,27 +8,12 @@ branding:
   icon: upload-cloud
 
 inputs:
-  image_refs:
-    description: "String of images to retag, delimited by spaces"
+  TAG_MAPPINGS:
+    description: "String of image mappings in the form of 'src_img:src_tag => dst_img:dst_img' delimited by newlines"
     required: true
-    # Example:
-    #   image_refs: >-
-    #     ghcr.io/ublue-os/bazzite
-    #     ghcr.io/ublue-os/bazzite-gnome
-    #     ghcr.io/ublue-os/bazzite-gnome
-
-  final_tags:
-    description: "String of tags to retag the image to delimited by spaces. Example: <tag1> <tag2>"
-    required: true
-    default: latest
-    # Example:
-    #   final_tags: >-
-    #     latest
-    #     stable
 
 runs:
   using: docker
   image: "Dockerfile"
   env:
-    image_refs: ${{ inputs.image_refs }}
-    final_tags: ${{ inputs.final_tags }}
+    TAG_MAPPINGS: ${{ inputs.TAG_MAPPINGS }}

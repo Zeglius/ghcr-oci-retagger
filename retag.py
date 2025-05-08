@@ -4,19 +4,16 @@
 # dependencies = []
 # ///
 
-import logging
-import os
 import subprocess
 import sys
+from os import getenv
 from typing import NoReturn
 
 
 def _help(exit_code: int = 0) -> NoReturn:
     """Print usage of script and exit"""
-    print(
-        f"""Usage:
-            image_refs="IMAGE1:latest IMAGE1:latest" final_tags="latest stable" ./{__file__.split("/")[-1]}"""
-    )
+    _script_name = __file__.split("/")[-1]
+    print(f"""Usage: TAG_MAPPINGS="IMAGE1:41 => IMAGE1:latest" ./{_script_name}""")
     sys.exit(exit_code)
 
 
@@ -26,13 +23,7 @@ def die(cause: str = "Something went wrong") -> NoReturn:
     sys.exit(1)
 
 
-type error = str | None
-
-
 def skopeo_retag(src_imgref: str, dst_imgref: str) -> bool:
-    logging.debug(
-        "Command to execute:", "/usr/bin/skopeo", "copy", src_imgref, dst_imgref
-    )
     cmd_out = subprocess.run(
         executable="/usr/bin/skopeo",
         args=["copy", src_imgref, src_imgref],
@@ -43,42 +34,24 @@ def skopeo_retag(src_imgref: str, dst_imgref: str) -> bool:
 
 
 def main():
-    # Set named parameters
-    imgs_to_retag: list[str] = [
-        s for s in os.getenv("image_refs", "").split(" ") if s != ""
-    ]
-    final_tags: list[str] = [
-        s for s in os.getenv("final_tags", "").split(" ") if s != ""
-    ]
+    img_mappings: list[str] = getenv("TAG_MAPPINGS", "").splitlines()
 
-    # Check params
-    if imgs_to_retag == []:
-        die("'image_refs' env var cant be empty")
-    elif final_tags == []:
-        die("'final_tags' env var cant be empty")
+    # Strip comment lines
+    img_mappings = list(map(lambda line: line.split("#")[0], img_mappings))
 
-    # For each tag in final_tags, append input_ref but with the tag to final_refs
-    for _img_ref in imgs_to_retag:
-        for _tag in final_tags:
-            # Check tag
-            if "@" in _tag:
-                die(f"Invalid tag: '@' in '{_tag}'")
-            elif ":" in _tag:
-                die(f"Invalid tag: ':' in '{_tag}'")
+    # Strip lines from trailing spaces
+    img_mappings = list(map(lambda line: line.strip(), img_mappings))
 
-            # Strip any existing tags
-            _img: str = _img_ref
-            _img = _img.split("@sha256:")[0]
-            _img = _img.split(":")[0]
-            _finalref = f"{_img}:{_tag}"
+    # Filter out empty lines
+    img_mappings = list(filter(lambda line: line != "", img_mappings))
 
-            # Check if _ref is valid
-            if len([c for c in _finalref if c == ":"]) != 1:
-                die(f"Invalid ref: must not contain more than one ':' : '{_finalref}'")
-
-            # Retag image with skopeo
-            skopeo_retag(_img_ref, _finalref)
+    for src, dst in [
+        (src.strip(), dst.strip()) for src, dst in [x.split("=>") for x in img_mappings]
+    ]:
+        skopeo_retag(src, dst)
 
 
 if __name__ == "__main__":
+    # if "-h" or "--help" in sys.argv:
+    #     _help()
     main()
