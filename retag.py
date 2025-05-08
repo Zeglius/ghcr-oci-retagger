@@ -37,7 +37,7 @@ summary_log = open(getenv("GITHUB_STEP_SUMMARY", "/dev/null"), "a")
 
 
 def main():
-    img_mappings: list[str] = getenv("TAG_MAPPINGS", "").splitlines()
+    img_mappings: list[str] = getenv("TAG_MAPPINGS", "").lower().splitlines()
 
     # Strip comment lines
     img_mappings = list(map(lambda line: line.split("#")[0], img_mappings))
