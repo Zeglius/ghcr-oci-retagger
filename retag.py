@@ -7,7 +7,7 @@
 import subprocess
 import sys
 from os import getenv
-from typing import NoReturn
+from typing import Iterator, NoReturn
 
 
 def _help(exit_code: int = 0) -> NoReturn:
@@ -36,6 +36,49 @@ def skopeo_retag(src_imgref: str, dst_imgref: str) -> bool:
 summary_log = open(getenv("GITHUB_STEP_SUMMARY", "/dev/null"), "a")
 
 
+def img_iter(lines: list[str]) -> Iterator[tuple[str, str]]:
+    """
+    Pass a list of lines, each line must follow the format 'src_img:src_tag => dst_img:dst_tag,dst_tag2,...'
+
+    Return an iterator of tuple(src_img, dst_img)
+    """
+    pairs = [(src.strip(), dst.strip()) for src, dst in [x.split("=>") for x in lines]]
+
+    res: list[tuple[str, str]] = []
+
+    for src, dst in pairs:
+        # Check if we have a list of tags (separated by commas)
+        _dst_tag = dst.split(":", 1)[-1]
+        if _dst_tag.count(",") > 0:
+            # If so, iterate per each tag
+            for dst in [
+                f"{dst.split(':')[0]}:{tag}"
+                for tag in map(str.strip, _dst_tag.split(","))
+            ]:
+                res.append(
+                    (
+                        (getenv("SRC_PREFIX") or getenv("PREFIX") or "").strip()
+                        + src.strip(),
+                        (getenv("DST_PREFIX") or getenv("PREFIX") or "").strip()
+                        + dst.strip(),
+                    )
+                )
+
+        else:
+            # Otherwise, iterate normally
+            del _dst_tag
+            res.append(
+                (
+                    (getenv("SRC_PREFIX") or getenv("PREFIX") or "").strip()
+                    + src.strip(),
+                    (getenv("DST_PREFIX") or getenv("PREFIX") or "").strip()
+                    + dst.strip(),
+                )
+            )
+
+    return iter(res)
+
+
 def main():
     img_mappings: list[str] = getenv("TAG_MAPPINGS", "").lower().splitlines()
 
@@ -51,11 +94,8 @@ def main():
     # Write header for github step log
     print("# Retagging summary", file=summary_log) if getenv("CI") is not None else None
 
-    for src, dst in [
-        (src.strip(), dst.strip()) for src, dst in [x.split("=>") for x in img_mappings]
-    ]:
-        src = (getenv("SRC_PREFIX") or getenv("PREFIX") or "") + src
-        dst = (getenv("DST_PREFIX") or getenv("PREFIX") or "") + dst
+    # Retag and print to github log if we are in CI
+    for src, dst in [(src.strip(), dst.strip()) for src, dst in img_iter(img_mappings)]:
         if all((src, dst)) and skopeo_retag(src, dst) and getenv("CI") is not None:
             print("```", file=summary_log)
             print(f"{src} => {dst}", file=summary_log)
