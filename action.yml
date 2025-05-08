@@ -12,8 +12,14 @@ inputs:
     description: "String of image mappings in the form of 'src_img:src_tag => dst_img:dst_img' delimited by newlines"
     required: true
 
+  PREFIX:
+    description: "Prepend a string to image references. Used to avoid repeating registry domain (ex.: 'ghcr.io/ublue-os/')"
+    required: false
+    default: ""
+
 runs:
   using: docker
   image: "Dockerfile"
   env:
     TAG_MAPPINGS: ${{ inputs.TAG_MAPPINGS }}
+    PREFIX: ${{ inputs.PREFIX }}

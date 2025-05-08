@@ -48,6 +48,8 @@ def main():
     for src, dst in [
         (src.strip(), dst.strip()) for src, dst in [x.split("=>") for x in img_mappings]
     ]:
+        src = getenv("PREFIX", "") + src
+        dst = getenv("PREFIX", "") + dst
         skopeo_retag(src, dst)
 
 
