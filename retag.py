@@ -10,6 +10,10 @@ from os import getenv
 from typing import NoReturn
 
 
+def is_dry() -> bool:
+    return getenv("DRY_RUN") == "1" or getenv("CI") != "true"
+
+
 def _help(exit_code: int = 0) -> NoReturn:
     """Print usage of script and exit"""
     _script_name = __file__.split("/")[-1]
@@ -31,9 +35,9 @@ def skopeo_retag(src_imgref: str, dst_imgref: str) -> bool:
         f"docker://{dst_imgref}",
     ]
 
-    print(" ".join(["Running command:", *cmd]))
+    print(" ".join(["Running command:", *cmd]), flush=True)
 
-    res = subprocess.run(cmd, text=True).returncode == 0
+    res = is_dry() or subprocess.run(cmd, text=True).returncode == 0
 
     return res
 
