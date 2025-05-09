@@ -9,19 +9,6 @@ import sys
 from os import getenv
 from typing import NoReturn
 
-skopeo_logged = False
-
-
-def _login():
-    subprocess.run(
-        [
-            "sh",
-            "-c",
-            """echo "${GITHUB_TOKEN}" | skopeo login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin""",
-        ],
-        shell=True,
-    )
-
 
 def _help(exit_code: int = 0) -> NoReturn:
     """Print usage of script and exit"""
@@ -98,8 +85,6 @@ def img_iter(lines: list[str]) -> list[tuple[str, str]]:
 
 
 def main():
-    _login()
-
     img_mappings: list[str] = getenv("TAG_MAPPINGS", "").lower().splitlines()
 
     # Strip comment lines
@@ -116,10 +101,14 @@ def main():
 
     # Retag and print to github log if we are in CI
     for src, dst in [(src.strip(), dst.strip()) for src, dst in img_iter(img_mappings)]:
-        if all((src, dst)) and skopeo_retag(src, dst) and getenv("CI") is not None:
-            print("```", file=summary_log)
-            print(f"{src} => {dst}", file=summary_log)
-            print("```", file=summary_log)
+        if all((src, dst)):
+            if not skopeo_retag(src, dst):
+                raise RuntimeError(f"Error while retaging '{src}' to '{dst}'")
+
+            if getenv("CI") is not None:
+                print("```", file=summary_log)
+                print(f"{src} => {dst}", file=summary_log)
+                print("```", file=summary_log)
 
 
 if __name__ == "__main__":
