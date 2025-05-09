@@ -25,9 +25,14 @@ inputs:
     description: "Prepend a string to destination image references. Overrides PREFIX"
     required: false
 
+  GITHUB_TOKEN:
+    description: "Github token with packages:write permission"
+    required: true
+
 runs:
   using: docker
   image: "Dockerfile"
   env:
     TAG_MAPPINGS: ${{ inputs.TAG_MAPPINGS }}
     PREFIX: ${{ inputs.PREFIX }}
+    GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
