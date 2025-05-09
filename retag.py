@@ -7,7 +7,62 @@
 import subprocess
 import sys
 from os import getenv
-from typing import NoReturn
+from typing import NamedTuple, NoReturn, Self, Set
+
+
+class RetagMappingEntry(NamedTuple):
+    src: str
+    dst: str
+
+    def __str__(self) -> str:
+        return f"{self.src} => {self.dst}"
+
+    @classmethod
+    def from_mapping(cls, mapping: str) -> list[Self]:
+        res: list[Self] = []
+        lines = mapping.lower().splitlines()
+
+        # Remove comments
+        lines = list(map(lambda line: line.split("#")[0].strip(), lines))
+        # Filter out empty lines
+        lines = list(filter(None, lines))
+
+        res = sum([cls.from_line(x) for x in lines], [])
+        return res
+
+    @classmethod
+    def from_line(cls, line: str) -> list[Self]:
+        mapping: Set[RetagMappingEntry] = set()
+
+        _p = line.split("=>")
+        src, dst = (_p[0].strip(), _p[1].strip())
+        del _p
+
+        def add_to_mapping(src: str, dst: str):
+            mapping.add(
+                RetagMappingEntry(
+                    (getenv("SRC_PREFIX") or getenv("PREFIX") or "").strip()
+                    + src.strip(),
+                    (getenv("DST_PREFIX") or getenv("PREFIX") or "").strip()
+                    + dst.strip(),
+                )
+            )
+
+        # Check if we have a sha digest in dst, if so, error out
+        if "@sha" in dst:
+            raise RuntimeError("destination tag must not be a sha digest")
+        if "," in dst:
+            # Check if we have a list of tags (separated by commas)
+            _img_and_tag = dst.split(":", 1)
+            _img = _img_and_tag[0]
+            _tags = _img_and_tag[1]
+            for dst in [f"{_img}:{x}" for x in _tags.split(",")]:
+                add_to_mapping(src, dst)
+        else:
+            # Otherwise, iterate normally
+            add_to_mapping(src, dst)
+
+        return [cls(src, dst) for src, dst in mapping]
 
 
 def is_dry() -> bool:
@@ -45,69 +100,22 @@ def skopeo_retag(src_imgref: str, dst_imgref: str) -> bool:
 summary_log = open(getenv("GITHUB_STEP_SUMMARY", "/dev/null"), "a")
 
 
-def img_iter(lines: list[str]) -> list[tuple[str, str]]:
-    """
-    Pass a list of lines, each line must follow the format 'src_img:src_tag => dst_img:dst_tag,dst_tag2,...'
-
-    Return an iterator of tuple(src_img, dst_img)
-    """
-    pairs = [(src.strip(), dst.strip()) for src, dst in [x.split("=>") for x in lines]]
-
-    res: list[tuple[str, str]] = []
-
-    for src, dst in pairs:
-        # Check if we have a list of tags (separated by commas)
-        _dst_tag = dst.split(":", 1)[-1]
-        if _dst_tag.count(",") > 0:
-            # If so, iterate per each tag
-            for dst in [
-                f"{dst.split(':')[0]}:{tag}"
-                for tag in map(str.strip, _dst_tag.split(","))
-            ]:
-                res.append(
-                    (
-                        (getenv("SRC_PREFIX") or getenv("PREFIX") or "").strip()
-                        + src.strip(),
-                        (getenv("DST_PREFIX") or getenv("PREFIX") or "").strip()
-                        + dst.strip(),
-                    )
-                )
-
-        else:
-            # Otherwise, iterate normally
-            del _dst_tag
-            res.append(
-                (
-                    (getenv("SRC_PREFIX") or getenv("PREFIX") or "").strip()
-                    + src.strip(),
-                    (getenv("DST_PREFIX") or getenv("PREFIX") or "").strip()
-                    + dst.strip(),
-                )
-            )
-
-    return res
-
-
 def main():
-    img_mappings: list[str] = getenv("TAG_MAPPINGS", "").lower().splitlines()
+    img_mappings = RetagMappingEntry.from_mapping(getenv("TAG_MAPPINGS", ""))
 
-    # Strip comment lines
-    img_mappings = list(map(lambda line: line.split("#")[0], img_mappings))
-
-    # Strip lines from trailing spaces
-    img_mappings = list(map(lambda line: line.strip(), img_mappings))
-
-    # Filter out empty lines
-    img_mappings = list(filter(lambda line: line != "", img_mappings))
+    if len(img_mappings) < 1:
+        raise RuntimeError("Not even a single entry could be parsed from TAG_MAPPINGS")
 
     # Write header for github step log
     print("# Retagging summary", file=summary_log) if getenv("CI") is not None else None
 
     # Retag and print to github log if we are in CI
-    for src, dst in [(src.strip(), dst.strip()) for src, dst in img_iter(img_mappings)]:
-        if all((src, dst)):
-            if not skopeo_retag(src, dst):
-                raise RuntimeError(f"Error while retaging '{src}' to '{dst}'")
+    for src, dst in img_mappings:
+        if not all((src, dst)):
+            die(f"src and dst are empty: src='{src}' dst='{dst}'")
+
+        if not skopeo_retag(src, dst):
+            die(f"Error while retaging '{src}' to '{dst}'")
 
             if getenv("CI") is not None:
                 print("```", file=summary_log)
