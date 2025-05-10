@@ -51,15 +51,11 @@ class RetagMappingEntry(NamedTuple):
         # Check if we have a sha digest in dst, if so, error out
         if "@sha" in dst:
             raise RuntimeError("destination tag must not be a sha digest")
-        if "," in dst:
-            # Check if we have a list of tags (separated by commas)
-            _img_and_tag = dst.split(":", 1)
-            _img = _img_and_tag[0]
-            _tags = _img_and_tag[1]
-            for dst in [f"{_img}:{x}" for x in _tags.split(",")]:
-                add_to_mapping(src, dst)
-        else:
-            # Otherwise, iterate normally
+
+        # Iterate across tags in dst (separated by commas)
+        dst_name = dst.split(":", 1)[0]
+        dst_tags = [x.strip() for x in dst.split(":", 1)[1].split(",")]
+        for dst in [f"{dst_name}:{x}" for x in dst_tags]:
             add_to_mapping(src, dst)
 
         return [cls(src, dst) for src, dst in mapping]
