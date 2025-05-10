@@ -103,7 +103,7 @@ def main():
         raise RuntimeError("Not even a single entry could be parsed from TAG_MAPPINGS")
 
     # Write header for github step log
-    print("# Retagging summary", file=summary_log) if getenv("CI") is not None else None
+    print("# Retagging summary", file=summary_log)
 
     # Retag and print to github log if we are in CI
     for src, dst in img_mappings:
@@ -113,10 +113,9 @@ def main():
         if not skopeo_retag(src, dst):
             die(f"Error while retaging '{src}' to '{dst}'")
 
-            if getenv("CI") is not None:
-                print("```", file=summary_log)
-                print(f"{src} => {dst}", file=summary_log)
-                print("```", file=summary_log)
+        print("```", file=summary_log)
+        print(f"{src} => {dst}", file=summary_log)
+        print("```", file=summary_log)
 
 
 if __name__ == "__main__":
